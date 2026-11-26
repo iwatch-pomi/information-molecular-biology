@@ -40,13 +40,13 @@
           <label><input type="radio" name="mode" value="w"><span>説明問題</span></label>
           <label><input type="radio" name="mode" value="term"><span>用語の意味</span></label>
         </div>
-        <p class="hint">説明問題は本試験の「説明せよ」形式。用語の意味は1〜2文で言えるかの確認です。どちらも書いてから模範解答と照らし合わせて自己採点します。</p>
+        <p class="hint">説明問題は本試験の「説明せよ」形式。用語の意味は1〜2文で言えるかの確認です。頭の中で答えてから模範解答を見て、「答えれた」か「あいまい」かを記録します。</p>
 
         <h2 class="mt">絞り込み</h2>
         <div class="seg" role="radiogroup" aria-label="絞り込み">
           <label><input type="radio" name="filter" value="all" checked><span>すべて</span></label>
           <label><input type="radio" name="filter" value="past"><span>過去問に出た内容</span></label>
-          <label><input type="radio" name="filter" value="wrong"><span>前回書けなかった問題</span></label>
+          <label><input type="radio" name="filter" value="wrong"><span id="filter-vague-label">あいまいな問題だけ</span></label>
         </div>
 
         <h2 class="mt">順番と出題数</h2>
@@ -74,7 +74,7 @@
         <ul>
           <li>問題はまとめプリントの項目（配列解析・立体構造・ゲノム・トランスクリプトーム・プロテオーム・メタボローム）に沿っています。まとめ外でも過去問に出た内容（PCR・E484Kなど）は最後にまとめました。</li>
           <li>「過去問」バッジはその内容が期末試験に出た年、「メモ」はまとめプリントや付箋の書き込みです。</li>
-          <li>「一部書けた」「書けなかった」と採点した問題はこのブラウザに記録され、「前回書けなかった問題」で復習できます。</li>
+          <li>最後に「あいまい」を付けた問題はこのブラウザに記録され、「あいまいな問題だけ」で解き直したり、一覧で読み直したりできます。あとで「答えれた」を付けると、あいまいのリストから外れます。</li>
         </ul>
         <button type="button" id="reset-history" class="link danger">記録をリセット</button>
       </details>
@@ -102,11 +102,11 @@
     <!-- 結果画面 -->
     <section id="result" class="screen" hidden>
       <div class="card result-head">
-        <p class="result-label">自己採点の結果</p>
+        <p class="result-label">結果</p>
         <p id="result-score" class="result-score"></p>
         <p id="result-sub" class="result-sub"></p>
         <div class="result-actions">
-          <button type="button" id="retry-wrong" class="btn primary">書けなかった問題だけ解き直す</button>
+          <button type="button" id="retry-wrong" class="btn primary">あいまいな問題だけ解き直す</button>
           <button type="button" id="back" class="btn ghost">設定に戻る</button>
         </div>
       </div>
