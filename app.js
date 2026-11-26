@@ -3,9 +3,11 @@
 
   var TOPICS = window.TOPICS || [];
   var QUESTIONS = window.QUESTIONS || [];
-  var STORE_KEY = "imb-quiz-history-v1";
+  var EXAM = window.EXAM || {};
+  var STORE_KEY = "imb-quiz-history-v2";
   var topicName = {};
-  TOPICS.forEach(function (t) { topicName[t.key] = t.name; });
+  var topicOrder = {};
+  TOPICS.forEach(function (t, i) { topicName[t.key] = t.name; topicOrder[t.key] = i; });
 
   // ── 記録（localStorage が使えない環境でも動くように） ──
   var memoryHistory = {};
@@ -37,29 +39,34 @@
     }
     return a;
   }
-  function isWritten(q) { return q.type === "w"; }
   function radioValue(name) {
     var r = document.querySelector('input[name="' + name + '"]:checked');
     return r ? r.value : null;
   }
   function show(id) {
-    ["setup", "quiz", "result"].forEach(function (s) { $(s).hidden = s !== id; });
+    ["setup", "quiz", "result", "list"].forEach(function (s) { $(s).hidden = s !== id; });
     window.scrollTo(0, 0);
   }
+  function typeLabel(q) { return q.type === "term" ? "用語" : "説明"; }
 
   // ── 設定画面 ──
+  function renderExam() {
+    $("exam-date").textContent = (EXAM.date || "") + (EXAM.room ? "　" + EXAM.room : "");
+    $("exam-rules").textContent = EXAM.rules || "";
+  }
+
   function renderTopics() {
     var list = $("topic-list");
     list.textContent = "";
     TOPICS.forEach(function (t) {
-      var mc = QUESTIONS.filter(function (q) { return q.t === t.key && !isWritten(q); }).length;
-      var w = QUESTIONS.filter(function (q) { return q.t === t.key && isWritten(q); }).length;
+      var w = QUESTIONS.filter(function (q) { return q.t === t.key && q.type === "w"; }).length;
+      var term = QUESTIONS.filter(function (q) { return q.t === t.key && q.type === "term"; }).length;
       var label = el("label", "topic");
       var cb = el("input");
       cb.type = "checkbox"; cb.value = t.key; cb.checked = true; cb.name = "topic";
       var name = el("span", "name", t.name);
       name.appendChild(el("span", "sub", t.sub));
-      var count = el("span", "count", "選択" + mc + "・記述" + w);
+      var count = el("span", "count", "説明" + w + "・用語" + term);
       label.appendChild(cb); label.appendChild(name); label.appendChild(count);
       list.appendChild(label);
     });
@@ -76,11 +83,19 @@
     var filter = radioValue("filter");
     return QUESTIONS.filter(function (q) {
       if (topics.indexOf(q.t) < 0) return false;
-      if (mode === "mc" && isWritten(q)) return false;
-      if (mode === "w" && !isWritten(q)) return false;
+      if (mode !== "all" && q.type !== mode) return false;
       if (filter === "past" && !(q.p && q.p.length)) return false;
       if (filter === "wrong" && !(history[q.id] && history[q.id].wrong)) return false;
       return true;
+    });
+  }
+
+  function orderedPool() {
+    var pool = buildPool();
+    if (radioValue("order") === "random") return shuffle(pool);
+    // まとめプリントの順（分野の順 → データ内の順）
+    return pool.slice().sort(function (a, b) {
+      return (topicOrder[a.t] - topicOrder[b.t]) || (QUESTIONS.indexOf(a) - QUESTIONS.indexOf(b));
     });
   }
 
@@ -91,8 +106,9 @@
     var asked = count === 0 ? n : Math.min(n, count);
     $("pool-info").textContent = n === 0
       ? "条件に合う問題がありません"
-      : "対象 " + n + " 問から " + asked + " 問を出題（前回まちがえた問題：" + wrongTotal + " 問）";
+      : "対象 " + n + " 問から " + asked + " 問を出題（前回書けなかった問題：" + wrongTotal + " 問）";
     $("start").disabled = n === 0;
+    $("open-list").disabled = n === 0;
   }
 
   // ── 出題 ──
@@ -100,13 +116,7 @@
 
   function startSession(questions) {
     session = {
-      items: questions.map(function (q) {
-        var item = { q: q, answered: false, result: null, chosen: null };
-        if (!isWritten(q)) {
-          item.order = shuffle(q.c.map(function (_, i) { return i; }));
-        }
-        return item;
-      }),
+      items: questions.map(function (q) { return { q: q, answered: false, result: null, draft: "" }; }),
       index: 0
     };
     show("quiz");
@@ -114,15 +124,15 @@
   }
 
   function scoreText() {
-    var mc = session.items.filter(function (it) { return it.answered && !isWritten(it.q); });
-    var ok = mc.filter(function (it) { return it.result === "ok"; }).length;
-    return mc.length ? "正解 " + ok + " / " + mc.length : "";
+    var done = session.items.filter(function (it) { return it.answered; });
+    var ok = done.filter(function (it) { return it.result === "ok"; }).length;
+    return done.length ? "書けた " + ok + " / " + done.length : "";
   }
 
   function renderMeta(q, container) {
     container.textContent = "";
     container.appendChild(el("span", "tag", topicName[q.t] || q.t));
-    container.appendChild(el("span", "tag type", isWritten(q) ? "記述" : "選択"));
+    container.appendChild(el("span", "tag type" + (q.type === "term" ? " term" : ""), typeLabel(q)));
     if (q.p && q.p.length) container.appendChild(el("span", "tag past", "過去問 " + q.p.join("・")));
     if (q.quiz) container.appendChild(el("span", "tag quiz", "確認問題"));
   }
@@ -136,6 +146,8 @@
     $("bar-fill").style.width = (session.index / total * 100) + "%";
     renderMeta(q, $("q-meta"));
     $("q-text").textContent = q.q;
+    $("q-note").hidden = true;
+
     var body = $("q-body");
     body.textContent = "";
     var fb = $("feedback");
@@ -143,55 +155,10 @@
     $("next").hidden = true;
     $("next").textContent = session.index === total - 1 ? "結果を見る" : "次へ";
 
-    if (isWritten(q)) renderWritten(item, body);
-    else renderChoices(item, body);
-  }
-
-  function renderChoices(item, body) {
-    var q = item.q;
-    var wrap = el("div", "choices");
-    item.order.forEach(function (origIndex, pos) {
-      var b = el("button", "choice");
-      b.type = "button";
-      b.dataset.orig = String(origIndex);
-      b.appendChild(el("span", "num", String(pos + 1)));
-      b.appendChild(el("span", "", q.c[origIndex]));
-      b.addEventListener("click", function () { answerChoice(item, origIndex); });
-      wrap.appendChild(b);
-    });
-    body.appendChild(wrap);
-  }
-
-  function answerChoice(item, origIndex) {
-    if (item.answered) return;
-    item.answered = true;
-    item.chosen = origIndex;
-    item.result = origIndex === 0 ? "ok" : "ng";
-    record(item.q.id, item.result !== "ok");
-
-    var buttons = $("q-body").querySelectorAll(".choice");
-    Array.prototype.forEach.call(buttons, function (b) {
-      b.disabled = true;
-      var o = parseInt(b.dataset.orig, 10);
-      if (o === 0) b.classList.add("correct");
-      else if (o === origIndex) b.classList.add("wrong");
-    });
-
-    var fb = $("feedback");
-    fb.textContent = "";
-    var v = el("p", "verdict " + (item.result === "ok" ? "ok" : "ng"), item.result === "ok" ? "正解" : "不正解");
-    fb.appendChild(v);
-    fb.appendChild(el("p", "", item.q.e));
-    fb.hidden = false;
-    $("q-score").textContent = scoreText();
-    $("next").hidden = false;
-    $("next").focus();
-  }
-
-  function renderWritten(item, body) {
-    var q = item.q;
-    var ta = el("textarea");
-    ta.placeholder = "ここに解答を書く（任意）。書き終えたら「模範解答を見る」を押してください。";
+    var ta = el("textarea", q.type === "term" ? "short" : "");
+    ta.placeholder = q.type === "term"
+      ? "1〜2文で意味を書く（頭の中で言うだけでもOK）"
+      : "試験のつもりで書く（任意）。書き終えたら「模範解答を見る」";
     ta.value = item.draft || "";
     ta.addEventListener("input", function () { item.draft = ta.value; });
     body.appendChild(ta);
@@ -201,45 +168,54 @@
     reveal.type = "button";
     actions.appendChild(reveal);
     body.appendChild(actions);
+    reveal.addEventListener("click", function () { revealAnswer(item, reveal); });
+  }
 
-    reveal.addEventListener("click", function () {
-      reveal.disabled = true;
-      var fb = $("feedback");
-      fb.textContent = "";
-      var model = el("div", "model");
-      model.appendChild(el("h3", "", "入れたいキーワード（入っていたらチェック）"));
-      var ul = el("ul", "keys");
-      (q.k || []).forEach(function (k) {
-        var li = el("li");
-        var lab = el("label");
-        var cb = el("input"); cb.type = "checkbox";
-        lab.appendChild(cb); lab.appendChild(el("span", "", k));
-        li.appendChild(lab); ul.appendChild(li);
-      });
-      model.appendChild(ul);
-      model.appendChild(el("h3", "", "模範解答の骨子"));
-      model.appendChild(el("p", "", q.a));
-      model.appendChild(el("h3", "", "自己採点"));
-      var self = el("div", "self");
-      [["ok", "書けた", "sel-ok"], ["mid", "一部書けた", "sel-mid"], ["ng", "書けなかった", "sel-ng"]].forEach(function (s) {
-        var b = el("button", "btn ghost", s[1]);
-        b.type = "button";
-        b.addEventListener("click", function () {
-          Array.prototype.forEach.call(self.querySelectorAll(".btn"), function (x) {
-            x.classList.remove("sel-ok", "sel-mid", "sel-ng");
-          });
-          b.classList.add(s[2]);
-          item.answered = true;
-          item.result = s[0];
-          record(q.id, s[0] !== "ok");
-          $("next").hidden = false;
-        });
-        self.appendChild(b);
-      });
-      model.appendChild(self);
-      fb.appendChild(model);
-      fb.hidden = false;
+  function revealAnswer(item, reveal) {
+    var q = item.q;
+    reveal.disabled = true;
+    if (q.note) {
+      $("q-note").textContent = "メモ：" + q.note;
+      $("q-note").hidden = false;
+    }
+    var fb = $("feedback");
+    fb.textContent = "";
+    var model = el("div", "model");
+    model.appendChild(el("h3", "", "入れたいキーワード（書けていたらチェック）"));
+    var ul = el("ul", "keys");
+    (q.k || []).forEach(function (k) {
+      var li = el("li");
+      var lab = el("label");
+      var cb = el("input"); cb.type = "checkbox";
+      lab.appendChild(cb); lab.appendChild(el("span", "", k));
+      li.appendChild(lab); ul.appendChild(li);
     });
+    model.appendChild(ul);
+    model.appendChild(el("h3", "", "模範解答の骨子"));
+    model.appendChild(el("p", "", q.a));
+    model.appendChild(el("h3", "", "自己採点"));
+    var self = el("div", "self");
+    [["ok", "書けた", "sel-ok"], ["mid", "一部書けた", "sel-mid"], ["ng", "書けなかった", "sel-ng"]].forEach(function (s, i) {
+      var b = el("button", "btn ghost", (i + 1) + " " + s[1]);
+      b.type = "button";
+      b.addEventListener("click", function () { grade(item, s[0], s[2], self, b); });
+      self.appendChild(b);
+    });
+    model.appendChild(self);
+    fb.appendChild(model);
+    fb.hidden = false;
+  }
+
+  function grade(item, result, cls, self, button) {
+    Array.prototype.forEach.call(self.querySelectorAll(".btn"), function (x) {
+      x.classList.remove("sel-ok", "sel-mid", "sel-ng");
+    });
+    button.classList.add(cls);
+    item.answered = true;
+    item.result = result;
+    record(item.q.id, result !== "ok");
+    $("q-score").textContent = scoreText();
+    $("next").hidden = false;
   }
 
   function record(id, wrong) {
@@ -261,21 +237,25 @@
   }
 
   // ── 結果 ──
+  function answerBlock(q, card) {
+    var a = el("p", "ans");
+    a.appendChild(el("b", "", "模範解答："));
+    a.appendChild(document.createTextNode(q.a));
+    card.appendChild(a);
+    if (q.k && q.k.length) card.appendChild(el("p", "exp", "キーワード：" + q.k.join("／")));
+    if (q.note) card.appendChild(el("p", "exp", "メモ：" + q.note));
+  }
+
   function showResult() {
     var done = session.items.filter(function (it) { return it.answered; });
-    var mc = done.filter(function (it) { return !isWritten(it.q); });
-    var w = done.filter(function (it) { return isWritten(it.q); });
-    var ok = mc.filter(function (it) { return it.result === "ok"; }).length;
+    var ok = done.filter(function (it) { return it.result === "ok"; }).length;
+    var mid = done.filter(function (it) { return it.result === "mid"; }).length;
+    var ng = done.filter(function (it) { return it.result === "ng"; }).length;
 
-    if (mc.length) {
-      $("result-score").textContent = Math.round(ok / mc.length * 100) + "%";
-      $("result-sub").textContent = "選択問題 " + ok + " / " + mc.length + " 問正解" +
-        (w.length ? "・記述 " + w.length + " 問" : "");
-    } else {
-      var wok = w.filter(function (it) { return it.result === "ok"; }).length;
-      $("result-score").textContent = wok + " / " + w.length;
-      $("result-sub").textContent = w.length ? "記述問題で「書けた」と自己採点した数" : "解答した問題がありません";
-    }
+    $("result-score").textContent = done.length ? ok + " / " + done.length : "—";
+    $("result-sub").textContent = done.length
+      ? "書けた " + ok + "・一部 " + mid + "・書けなかった " + ng
+      : "自己採点した問題がありません";
 
     var missed = done.filter(function (it) { return it.result !== "ok"; });
     $("retry-wrong").hidden = missed.length === 0;
@@ -291,33 +271,45 @@
         renderMeta(q, meta);
         card.appendChild(meta);
         card.appendChild(el("p", "q-text", q.q));
-        if (isWritten(q)) {
-          var a = el("p", "ans");
-          a.appendChild(el("b", "", "模範解答："));
-          a.appendChild(document.createTextNode(q.a));
-          card.appendChild(a);
-          if (q.k && q.k.length) card.appendChild(el("p", "exp", "キーワード：" + q.k.join("／")));
-        } else {
-          var ans = el("p", "ans");
-          ans.appendChild(el("b", "", "正解："));
-          ans.appendChild(document.createTextNode(q.c[0]));
-          card.appendChild(ans);
-          card.appendChild(el("p", "yours", "あなたの解答：" + q.c[it.chosen]));
-          card.appendChild(el("p", "exp", q.e));
-        }
+        answerBlock(q, card);
         review.appendChild(card);
       });
     } else if (done.length) {
-      review.appendChild(el("p", "hint", "全問正解です。"));
+      review.appendChild(el("p", "hint", "全部書けました。"));
     }
 
     session.missed = missed.map(function (it) { return it.q; });
     show("result");
   }
 
+  // ── 一覧（模範解答を通して読む） ──
+  function showList() {
+    var pool = buildPool().slice().sort(function (a, b) {
+      return (topicOrder[a.t] - topicOrder[b.t]) || (QUESTIONS.indexOf(a) - QUESTIONS.indexOf(b));
+    });
+    var body = $("list-body");
+    body.textContent = "";
+    $("list-info").textContent = pool.length + " 問";
+    var current = null;
+    pool.forEach(function (q) {
+      if (q.t !== current) {
+        current = q.t;
+        body.appendChild(el("h2", "review-title", topicName[q.t] || q.t));
+      }
+      var card = el("article", "card list-item");
+      var meta = el("div", "meta");
+      renderMeta(q, meta);
+      card.appendChild(meta);
+      card.appendChild(el("p", "q-text", q.q));
+      answerBlock(q, card);
+      body.appendChild(card);
+    });
+    show("list");
+  }
+
   // ── イベント ──
   function bind() {
-    document.querySelectorAll('input[name="topic"], input[name="mode"], input[name="filter"], input[name="count"]')
+    document.querySelectorAll('input[name="mode"], input[name="filter"], input[name="count"], input[name="order"]')
       .forEach(function (i) { i.addEventListener("change", updatePoolInfo); });
     $("topic-list").addEventListener("change", updatePoolInfo);
 
@@ -330,17 +322,19 @@
     });
 
     $("start").addEventListener("click", function () {
-      var pool = shuffle(buildPool());
+      var pool = orderedPool();
       var count = parseInt(radioValue("count"), 10);
       if (count > 0) pool = pool.slice(0, count);
       if (pool.length) startSession(pool);
     });
 
+    $("open-list").addEventListener("click", showList);
+    $("list-back").addEventListener("click", function () { updatePoolInfo(); show("setup"); });
     $("next").addEventListener("click", next);
     $("quit").addEventListener("click", showResult);
     $("back").addEventListener("click", function () { updatePoolInfo(); show("setup"); });
     $("retry-wrong").addEventListener("click", function () {
-      if (session && session.missed && session.missed.length) startSession(shuffle(session.missed));
+      if (session && session.missed && session.missed.length) startSession(session.missed);
     });
     $("reset-history").addEventListener("click", function () {
       history = {};
@@ -348,19 +342,24 @@
       updatePoolInfo();
     });
 
+    // キーボード：Space＝模範解答、1〜3＝自己採点、Enter＝次へ（入力欄の外で）
     document.addEventListener("keydown", function (e) {
       if ($("quiz").hidden || !session) return;
       if (e.target && e.target.tagName === "TEXTAREA") return;
-      var item = session.items[session.index];
-      if (!isWritten(item.q) && !item.answered && /^[1-9]$/.test(e.key)) {
-        var pos = parseInt(e.key, 10) - 1;
-        if (pos < item.order.length) answerChoice(item, item.order[pos]);
+      var reveal = $("q-body").querySelector(".w-actions .btn");
+      if (e.key === " " && reveal && !reveal.disabled) {
+        e.preventDefault();
+        reveal.click();
+      } else if (/^[1-3]$/.test(e.key)) {
+        var btns = $("feedback").querySelectorAll(".self .btn");
+        if (btns.length) btns[parseInt(e.key, 10) - 1].click();
       } else if (e.key === "Enter" && !$("next").hidden && document.activeElement !== $("next")) {
         next();
       }
     });
   }
 
+  renderExam();
   renderTopics();
   bind();
   updatePoolInfo();

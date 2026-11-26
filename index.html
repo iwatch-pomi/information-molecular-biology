@@ -4,20 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>情報分子生物学 確認テスト</title>
-  <meta name="description" content="情報分子生物学の授業資料と過去問をもとにした確認テスト">
+  <meta name="description" content="情報分子生物学のまとめプリントと過去問をもとにした記述式の確認テスト">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="site-header">
     <div class="wrap">
       <h1>情報分子生物学 <span>確認テスト</span></h1>
-      <p class="lead">授業スライドと過去問（平成30年度・2023・2024）から作成</p>
+      <p class="lead">まとめプリント（スライド13〜18）と過去問（平成30年度・2023・2024）から作成した記述問題</p>
     </div>
   </header>
 
   <main class="wrap">
     <!-- 設定画面 -->
     <section id="setup" class="screen">
+      <div class="card exam">
+        <p class="exam-title">期末試験</p>
+        <p id="exam-date" class="exam-date"></p>
+        <p id="exam-rules" class="exam-rules"></p>
+      </div>
+
       <div class="card">
         <h2>出題範囲</h2>
         <div class="row-actions">
@@ -28,41 +34,47 @@
       </div>
 
       <div class="card">
-        <h2>形式</h2>
-        <div class="seg" role="radiogroup" aria-label="形式">
-          <label><input type="radio" name="mode" value="mc" checked><span>選択問題</span></label>
-          <label><input type="radio" name="mode" value="w"><span>記述問題</span></label>
-          <label><input type="radio" name="mode" value="all"><span>両方</span></label>
+        <h2>問題の種類</h2>
+        <div class="seg" role="radiogroup" aria-label="問題の種類">
+          <label><input type="radio" name="mode" value="all" checked><span>両方</span></label>
+          <label><input type="radio" name="mode" value="w"><span>説明問題</span></label>
+          <label><input type="radio" name="mode" value="term"><span>用語の意味</span></label>
         </div>
-        <p class="hint">記述問題は本試験と同じ形式です。自分で答えを書いてから模範解答と照らし合わせ、自己採点します。</p>
-      </div>
+        <p class="hint">説明問題は本試験の「説明せよ」形式。用語の意味は1〜2文で言えるかの確認です。どちらも書いてから模範解答と照らし合わせて自己採点します。</p>
 
-      <div class="card">
-        <h2>絞り込み</h2>
+        <h2 class="mt">絞り込み</h2>
         <div class="seg" role="radiogroup" aria-label="絞り込み">
           <label><input type="radio" name="filter" value="all" checked><span>すべて</span></label>
           <label><input type="radio" name="filter" value="past"><span>過去問に出た内容</span></label>
-          <label><input type="radio" name="filter" value="wrong"><span>前回まちがえた問題</span></label>
+          <label><input type="radio" name="filter" value="wrong"><span>前回書けなかった問題</span></label>
         </div>
-        <h2 class="mt">出題数</h2>
-        <div class="seg" role="radiogroup" aria-label="出題数">
+
+        <h2 class="mt">順番と出題数</h2>
+        <div class="seg" role="radiogroup" aria-label="順番">
+          <label><input type="radio" name="order" value="print" checked><span>まとめプリントの順</span></label>
+          <label><input type="radio" name="order" value="random"><span>ランダム</span></label>
+        </div>
+        <div class="seg mt-s" role="radiogroup" aria-label="出題数">
           <label><input type="radio" name="count" value="10"><span>10問</span></label>
-          <label><input type="radio" name="count" value="20" checked><span>20問</span></label>
-          <label><input type="radio" name="count" value="0"><span>全部</span></label>
+          <label><input type="radio" name="count" value="20"><span>20問</span></label>
+          <label><input type="radio" name="count" value="0" checked><span>全部</span></label>
         </div>
       </div>
 
       <div class="start-bar">
         <p id="pool-info" class="pool-info"></p>
-        <button type="button" id="start" class="btn primary">はじめる</button>
+        <div class="start-actions">
+          <button type="button" id="open-list" class="btn ghost">模範解答を一覧で読む</button>
+          <button type="button" id="start" class="btn primary">はじめる</button>
+        </div>
       </div>
 
       <details class="card about">
         <summary>この確認テストについて</summary>
         <ul>
-          <li>選択問題は選択肢の順番が毎回シャッフルされます。キーボードの 1〜4 で解答、Enter で次へ進めます。</li>
-          <li>「過去問」バッジは、その内容が期末試験（2018・2023・2024）に出たことを示します。「確認問題」は毎回の授業の確認問題に出た内容です。</li>
-          <li>まちがえた問題はこのブラウザに記録され、「前回まちがえた問題」で復習できます。</li>
+          <li>問題はまとめプリントの項目（配列解析・立体構造・ゲノム・トランスクリプトーム・プロテオーム・メタボローム）に沿っています。まとめ外でも過去問に出た内容（PCR・E484Kなど）は最後にまとめました。</li>
+          <li>「過去問」バッジはその内容が期末試験に出た年、「メモ」はまとめプリントや付箋の書き込みです。</li>
+          <li>「一部書けた」「書けなかった」と採点した問題はこのブラウザに記録され、「前回書けなかった問題」で復習できます。</li>
         </ul>
         <button type="button" id="reset-history" class="link danger">記録をリセット</button>
       </details>
@@ -77,6 +89,7 @@
       <article class="card question">
         <div id="q-meta" class="meta"></div>
         <p id="q-text" class="q-text"></p>
+        <p id="q-note" class="note" hidden></p>
         <div id="q-body"></div>
         <div id="feedback" class="feedback" hidden></div>
       </article>
@@ -89,15 +102,24 @@
     <!-- 結果画面 -->
     <section id="result" class="screen" hidden>
       <div class="card result-head">
-        <p class="result-label">結果</p>
+        <p class="result-label">自己採点の結果</p>
         <p id="result-score" class="result-score"></p>
         <p id="result-sub" class="result-sub"></p>
         <div class="result-actions">
-          <button type="button" id="retry-wrong" class="btn primary">まちがえた問題だけ解き直す</button>
+          <button type="button" id="retry-wrong" class="btn primary">書けなかった問題だけ解き直す</button>
           <button type="button" id="back" class="btn ghost">設定に戻る</button>
         </div>
       </div>
       <div id="review"></div>
+    </section>
+
+    <!-- 一覧画面 -->
+    <section id="list" class="screen" hidden>
+      <div class="list-head">
+        <button type="button" id="list-back" class="btn ghost">設定に戻る</button>
+        <p id="list-info" class="pool-info"></p>
+      </div>
+      <div id="list-body"></div>
     </section>
   </main>
 

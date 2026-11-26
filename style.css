@@ -178,3 +178,27 @@ textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
   .nav { flex-direction: column-reverse; }
   .nav .btn, .result-actions .btn { width: 100%; }
 }
+
+/* 期末試験の案内 */
+.exam { background: var(--accent-soft); border-color: #c9e2dc; }
+.exam-title { margin: 0; font-size: 0.8rem; font-weight: 700; color: var(--accent); letter-spacing: 0.05em; }
+.exam-date { margin: 2px 0 6px; font-size: 1.1rem; font-weight: 700; }
+.exam-rules { margin: 0; font-size: 0.9rem; color: var(--ink); }
+
+.mt-s { margin-top: 10px; }
+.start-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.start-actions .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.tag.type.term { background: #f3ebf8; color: #6a3d86; }
+.note { margin: -6px 0 14px; padding: 8px 12px; border-left: 3px solid var(--warn); background: var(--warn-soft); color: var(--warn); font-size: 0.85rem; }
+textarea.short { min-height: 90px; }
+
+.list-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.list-item { border-left: 4px solid var(--accent); }
+.list-item .q-text { font-size: 0.95rem; margin-bottom: 8px; }
+.list-item .ans b { color: var(--accent); }
+
+@media (max-width: 520px) {
+  .start-actions { flex-direction: column-reverse; }
+  .start-actions .btn { width: 100%; }
+}
