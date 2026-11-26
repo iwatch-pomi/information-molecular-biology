@@ -196,6 +196,7 @@
     var n = pool.length;
     renderStartFrom(pool);
     renderResume();
+    renderVagueCard();
     var wrongTotal = QUESTIONS.filter(function (q) { return history[q.id] && history[q.id].wrong; }).length;
     var count = parseInt(radioValue("count"), 10);
     var rest = n - startIndex(pool);
@@ -370,6 +371,7 @@
 
     var missed = done.filter(function (it) { return it.result !== "ok"; });
     $("retry-wrong").hidden = missed.length === 0;
+    $("result-read").hidden = vagueQuestions().length === 0;
 
     var review = $("review");
     review.textContent = "";
@@ -394,13 +396,34 @@
   }
 
   // ── 一覧（模範解答を通して読む） ──
-  function showList() {
-    var pool = buildPool().slice().sort(function (a, b) {
-      return (topicOrder[a.t] - topicOrder[b.t]) || (QUESTIONS.indexOf(a) - QUESTIONS.indexOf(b));
-    });
+  function vagueQuestions() {
+    return QUESTIONS.filter(function (q) { return history[q.id] && history[q.id].wrong; })
+      .sort(function (a, b) {
+        return (topicOrder[a.t] - topicOrder[b.t]) || (QUESTIONS.indexOf(a) - QUESTIONS.indexOf(b));
+      });
+  }
+
+  function renderVagueCard() {
+    var n = vagueQuestions().length;
+    $("vague-card").hidden = n === 0;
+    $("vague-info").textContent = n + " 問あります。模範解答をまとめて読むか、解き直して確認しましょう。";
+  }
+
+  var listMode = "pool";
+  var listReturn = "setup";
+
+  // mode: "pool"（設定画面の条件）/ "vague"（あいまいな問題すべて）
+  function showList(mode, from) {
+    listMode = mode || "pool";
+    listReturn = from || "setup";
+    var vague = listMode === "vague";
+    var pool = vague ? vagueQuestions() : orderedPoolStable();
     var body = $("list-body");
     body.textContent = "";
-    $("list-info").textContent = (radioValue("filter") === "wrong" ? "あいまいな問題 " : "") + pool.length + " 問";
+    $("list-info").textContent = (vague ? "あいまいな問題 " : "") + pool.length + " 問";
+    $("list-hint").hidden = !vague;
+    $("list-body").classList.toggle("hide-answers", $("hide-answers").checked);
+    if (!pool.length) body.appendChild(el("p", "hint", vague ? "あいまいな問題はありません。" : "問題がありません。"));
     var current = null;
     pool.forEach(function (q) {
       if (q.t !== current) {
@@ -412,7 +435,28 @@
       renderMeta(q, meta);
       card.appendChild(meta);
       card.appendChild(el("p", "q-text", q.q));
-      answerBlock(q, card);
+      var ansWrap = el("div", "ans-wrap");
+      answerBlock(q, ansWrap);
+      card.appendChild(ansWrap);
+      var cover = el("button", "btn ghost reveal-one", "答えを表示");
+      cover.type = "button";
+      cover.addEventListener("click", function () { card.classList.add("shown"); });
+      card.appendChild(cover);
+      if (vague) {
+        var row = el("div", "list-grade");
+        var ok = el("button", "btn ghost", "答えれた（あいまいから外す）");
+        ok.type = "button";
+        ok.addEventListener("click", function () {
+          record(q.id, false);
+          card.classList.add("cleared");
+          row.textContent = "";
+          row.appendChild(el("p", "hint", "あいまいから外しました。"));
+          var left = vagueQuestions().length;
+          $("list-info").textContent = "あいまいな問題 残り " + left + " 問";
+        });
+        row.appendChild(ok);
+        card.appendChild(row);
+      }
       body.appendChild(card);
     });
     show("list");
@@ -440,8 +484,21 @@
       if (pool.length) startSession(pool);
     });
 
-    $("open-list").addEventListener("click", showList);
-    $("list-back").addEventListener("click", function () { updatePoolInfo(); show("setup"); });
+    $("open-list").addEventListener("click", function () { showList("pool", "setup"); });
+    $("vague-read").addEventListener("click", function () { showList("vague", "setup"); });
+    $("vague-retry").addEventListener("click", function () {
+      var qs = vagueQuestions();
+      if (qs.length) startSession(qs);
+    });
+    $("result-read").addEventListener("click", function () { showList("vague", "result"); });
+    $("hide-answers").addEventListener("change", function () {
+      $("list-body").classList.toggle("hide-answers", $("hide-answers").checked);
+      Array.prototype.forEach.call($("list-body").querySelectorAll(".list-item.shown"), function (c) { c.classList.remove("shown"); });
+    });
+    $("list-back").addEventListener("click", function () {
+      if (listReturn === "result" && session) { show("result"); return; }
+      updatePoolInfo(); show("setup");
+    });
     $("next").addEventListener("click", next);
     $("quit").addEventListener("click", function () { showResult(false); });
     $("prev").addEventListener("click", prev);

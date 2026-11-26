@@ -231,3 +231,21 @@ select:disabled { color: var(--muted); background: #f3f2ee; }
   .nav-left { width: 100%; }
   .nav-left .btn { flex: 1; }
 }
+
+/* あいまいな問題 */
+.vague-card { border: 2px solid var(--ng); }
+.vague-title { margin: 0; font-size: 0.8rem; font-weight: 700; color: var(--ng); }
+.vague-info { margin: 4px 0 12px; }
+.vague-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.list-tools { margin-bottom: 8px; }
+.list-tools .hint { margin-top: 4px; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; }
+.toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+.reveal-one { display: none; width: 100%; margin-top: 4px; }
+.hide-answers .list-item .ans-wrap { display: none; }
+.hide-answers .list-item .reveal-one { display: block; }
+.hide-answers .list-item.shown .ans-wrap { display: block; }
+.hide-answers .list-item.shown .reveal-one { display: none; }
+.list-grade { margin-top: 12px; }
+.list-grade .btn { width: 100%; }
+.list-item.cleared { opacity: 0.55; border-left-color: var(--ok); }

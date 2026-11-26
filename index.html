@@ -27,6 +27,15 @@
         </div>
       </div>
 
+      <div id="vague-card" class="card vague-card" hidden>
+        <p class="vague-title">あいまいな問題</p>
+        <p id="vague-info" class="vague-info"></p>
+        <div class="vague-actions">
+          <button type="button" id="vague-read" class="btn primary">模範解答を読む</button>
+          <button type="button" id="vague-retry" class="btn ghost">解き直す</button>
+        </div>
+      </div>
+
       <div class="card exam">
         <p class="exam-title">期末試験</p>
         <p id="exam-date" class="exam-date"></p>
@@ -127,6 +136,7 @@
         <p id="result-sub" class="result-sub"></p>
         <div class="result-actions">
           <button type="button" id="retry-wrong" class="btn primary">あいまいな問題だけ解き直す</button>
+          <button type="button" id="result-read" class="btn ghost">あいまいな問題の模範解答を読む</button>
           <button type="button" id="back" class="btn ghost">設定に戻る</button>
         </div>
       </div>
@@ -136,8 +146,12 @@
     <!-- 一覧画面 -->
     <section id="list" class="screen" hidden>
       <div class="list-head">
-        <button type="button" id="list-back" class="btn ghost">設定に戻る</button>
+        <button type="button" id="list-back" class="btn ghost">戻る</button>
         <p id="list-info" class="pool-info"></p>
+      </div>
+      <div class="list-tools">
+        <label class="toggle"><input type="checkbox" id="hide-answers"><span>答えを隠す（タップで表示）</span></label>
+        <p id="list-hint" class="hint" hidden>覚えたら「答えれた」を押すと、あいまいのリストから外れます。</p>
       </div>
       <div id="list-body"></div>
     </section>
