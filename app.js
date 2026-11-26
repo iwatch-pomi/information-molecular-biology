@@ -23,6 +23,43 @@
   }
   var history = loadHistory();
 
+  // ── 途中経過（続きから再開用） ──
+  var SESSION_KEY = "imb-quiz-session-v1";
+  var memorySession = null;
+  var byId = {};
+  QUESTIONS.forEach(function (q) { byId[q.id] = q; });
+
+  function saveSessionState() {
+    if (!session) return;
+    var results = {};
+    session.items.forEach(function (it) { if (it.answered) results[it.q.id] = it.result; });
+    var data = {
+      ids: session.items.map(function (it) { return it.q.id; }),
+      index: session.index,
+      results: results,
+      savedAt: Date.now()
+    };
+    memorySession = data;
+    try { window.localStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch (e) { /* 保存できなくても続行 */ }
+  }
+  function loadSessionState() {
+    var data = memorySession;
+    try {
+      var raw = window.localStorage.getItem(SESSION_KEY);
+      if (raw) data = JSON.parse(raw);
+    } catch (e) { /* メモリ上の値を使う */ }
+    if (!data || !data.ids) return null;
+    var ids = data.ids.filter(function (id) { return byId[id]; });
+    if (!ids.length) return null;
+    data.ids = ids;
+    data.index = Math.min(Math.max(data.index || 0, 0), ids.length - 1);
+    return data;
+  }
+  function clearSessionState() {
+    memorySession = null;
+    try { window.localStorage.removeItem(SESSION_KEY); } catch (e) { /* 無視 */ }
+  }
+
   // ── ユーティリティ ──
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) {
@@ -90,6 +127,12 @@
     });
   }
 
+  function orderedPoolStable() {
+    return buildPool().slice().sort(function (a, b) {
+      return (topicOrder[a.t] - topicOrder[b.t]) || (QUESTIONS.indexOf(a) - QUESTIONS.indexOf(b));
+    });
+  }
+
   function orderedPool() {
     var pool = buildPool();
     if (radioValue("order") === "random") return shuffle(pool);
@@ -99,14 +142,68 @@
     });
   }
 
+  function renderStartFrom(pool) {
+    var sel = $("start-from");
+    var keep = sel.value;
+    var isPrint = radioValue("order") === "print";
+    sel.textContent = "";
+    if (!isPrint) {
+      sel.appendChild(el("option", "", "ランダムのときは最初から"));
+      sel.disabled = true;
+      $("start-from-hint").textContent = "途中の問題から始めるには「まとめプリントの順」を選んでください。";
+      return;
+    }
+    sel.disabled = pool.length === 0;
+    var current = null;
+    var group = null;
+    pool.forEach(function (q, i) {
+      if (q.t !== current) {
+        current = q.t;
+        group = document.createElement("optgroup");
+        group.label = topicName[q.t] || q.t;
+        sel.appendChild(group);
+      }
+      var text = q.q.length > 34 ? q.q.slice(0, 34) + "…" : q.q;
+      var opt = el("option", "", (i + 1) + ". " + text);
+      opt.value = q.id;
+      group.appendChild(opt);
+    });
+    if (keep && pool.some(function (q) { return q.id === keep; })) sel.value = keep;
+    $("start-from-hint").textContent = "途中の問題から始められます。分野の見出しで探せます。";
+  }
+
+  function startIndex(pool) {
+    if (radioValue("order") !== "print") return 0;
+    var id = $("start-from").value;
+    for (var i = 0; i < pool.length; i++) if (pool[i].id === id) return i;
+    return 0;
+  }
+
+  function renderResume() {
+    var saved = loadSessionState();
+    if (!saved) { $("resume").hidden = true; return; }
+    var answered = Object.keys(saved.results || {}).length;
+    var d = new Date(saved.savedAt || Date.now());
+    var when = (d.getMonth() + 1) + "/" + d.getDate() + " " + d.getHours() + ":" + ("0" + d.getMinutes()).slice(-2);
+    var q = byId[saved.ids[saved.index]];
+    $("resume-info").textContent = (saved.index + 1) + " / " + saved.ids.length + " 問目から（記録済み " + answered + " 問・" + when + "）"
+      + (q ? "　次：" + (q.q.length > 30 ? q.q.slice(0, 30) + "…" : q.q) : "");
+    $("resume").hidden = false;
+  }
+
   function updatePoolInfo() {
-    var n = buildPool().length;
+    var pool = orderedPoolStable();
+    var n = pool.length;
+    renderStartFrom(pool);
+    renderResume();
     var wrongTotal = QUESTIONS.filter(function (q) { return history[q.id] && history[q.id].wrong; }).length;
     var count = parseInt(radioValue("count"), 10);
-    var asked = count === 0 ? n : Math.min(n, count);
+    var rest = n - startIndex(pool);
+    var asked = count === 0 ? rest : Math.min(rest, count);
+    var from = startIndex(pool) > 0 ? "（" + (startIndex(pool) + 1) + "問目から）" : "";
     $("pool-info").textContent = n === 0
       ? "条件に合う問題がありません"
-      : "対象 " + n + " 問から " + asked + " 問を出題（あいまい：" + wrongTotal + " 問）";
+      : "対象 " + n + " 問のうち " + asked + " 問を出題" + from + "・あいまい " + wrongTotal + " 問";
     $("filter-vague-label").textContent = "あいまいな問題だけ（" + wrongTotal + "）";
     $("start").disabled = n === 0;
     $("open-list").disabled = n === 0;
@@ -115,11 +212,16 @@
   // ── 出題 ──
   var session = null;
 
-  function startSession(questions) {
+  function startSession(questions, index, results) {
+    results = results || {};
     session = {
-      items: questions.map(function (q) { return { q: q, answered: false, result: null }; }),
-      index: 0
+      items: questions.map(function (q) {
+        var r = results[q.id] || null;
+        return { q: q, answered: !!r, result: r };
+      }),
+      index: index || 0
     };
+    saveSessionState();
     show("quiz");
     renderQuestion();
   }
@@ -154,8 +256,9 @@
     body.textContent = "";
     var fb = $("feedback");
     fb.hidden = true; fb.textContent = "";
-    $("next").hidden = true;
+    $("next").hidden = !item.answered;
     $("next").textContent = session.index === total - 1 ? "結果を見る" : "次へ";
+    $("prev").disabled = session.index === 0;
 
     body.appendChild(el("p", "think", q.type === "term"
       ? "1〜2文で意味を言えるか、頭の中で答えてみてください。"
@@ -167,6 +270,9 @@
     actions.appendChild(reveal);
     body.appendChild(actions);
     reveal.addEventListener("click", function () { revealAnswer(item, reveal); });
+    if (item.answered) {
+      body.appendChild(el("p", "hint", "記録済み：" + (item.result === "ok" ? "答えれた" : "あいまい") + "（答えを見て押し直すと上書きされます）"));
+    }
   }
 
   function revealAnswer(item, reveal) {
@@ -190,6 +296,7 @@
       var b = el("button", "btn ghost", (i + 1) + "  " + s[1]);
       b.type = "button";
       b.addEventListener("click", function () { grade(item, s[0], s[2], self, b); });
+      if (item.answered && item.result === s[0]) b.classList.add(s[2]);
       self.appendChild(b);
     });
     model.appendChild(self);
@@ -205,6 +312,7 @@
     item.answered = true;
     item.result = result;
     record(item.q.id, result !== "ok");
+    saveSessionState();
     $("q-score").textContent = scoreText();
     $("next").hidden = false;
   }
@@ -221,9 +329,20 @@
   function next() {
     if (session.index < session.items.length - 1) {
       session.index += 1;
+      saveSessionState();
       renderQuestion();
+      window.scrollTo(0, 0);
     } else {
-      showResult();
+      showResult(true);
+    }
+  }
+
+  function prev() {
+    if (session.index > 0) {
+      session.index -= 1;
+      saveSessionState();
+      renderQuestion();
+      window.scrollTo(0, 0);
     }
   }
 
@@ -237,7 +356,9 @@
     if (q.note) card.appendChild(el("p", "exp", "メモ：" + q.note));
   }
 
-  function showResult() {
+  function showResult(completed) {
+    if (completed === true) clearSessionState();
+    else saveSessionState();
     var done = session.items.filter(function (it) { return it.answered; });
     var ok = done.filter(function (it) { return it.result === "ok"; }).length;
     var ng = done.length - ok;
@@ -313,6 +434,7 @@
 
     $("start").addEventListener("click", function () {
       var pool = orderedPool();
+      if (radioValue("order") === "print") pool = pool.slice(startIndex(pool));
       var count = parseInt(radioValue("count"), 10);
       if (count > 0) pool = pool.slice(0, count);
       if (pool.length) startSession(pool);
@@ -321,7 +443,18 @@
     $("open-list").addEventListener("click", showList);
     $("list-back").addEventListener("click", function () { updatePoolInfo(); show("setup"); });
     $("next").addEventListener("click", next);
-    $("quit").addEventListener("click", showResult);
+    $("quit").addEventListener("click", function () { showResult(false); });
+    $("prev").addEventListener("click", prev);
+    $("start-from").addEventListener("change", updatePoolInfo);
+    $("resume-btn").addEventListener("click", function () {
+      var saved = loadSessionState();
+      if (!saved) { renderResume(); return; }
+      startSession(saved.ids.map(function (id) { return byId[id]; }), saved.index, saved.results);
+    });
+    $("resume-discard").addEventListener("click", function () {
+      clearSessionState();
+      renderResume();
+    });
     $("back").addEventListener("click", function () { updatePoolInfo(); show("setup"); });
     $("retry-wrong").addEventListener("click", function () {
       if (session && session.missed && session.missed.length) startSession(session.missed);
@@ -343,6 +476,10 @@
         var btns = $("feedback").querySelectorAll(".self .btn");
         if (btns.length) btns[parseInt(e.key, 10) - 1].click();
       } else if (e.key === "Enter" && !$("next").hidden && document.activeElement !== $("next")) {
+        next();
+      } else if (e.key === "ArrowLeft" && document.activeElement.tagName !== "SELECT") {
+        prev();
+      } else if (e.key === "ArrowRight" && !$("next").hidden) {
         next();
       }
     });

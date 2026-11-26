@@ -212,3 +212,22 @@ textarea.short { min-height: 90px; }
 .self.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
 .self.two .btn { padding: 12px 10px; font-size: 1rem; }
 .tag.vague { background: var(--ng-soft); color: var(--ng); font-weight: 600; }
+
+/* 続きから再開・開始位置・前へ */
+.resume { border-color: var(--accent); border-width: 2px; }
+.resume-title { margin: 0; font-size: 0.8rem; font-weight: 700; color: var(--accent); }
+.resume-info { margin: 4px 0 12px; }
+.resume-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.select-wrap { display: block; }
+select {
+  width: 100%; font: inherit; font-size: 0.9rem; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink);
+}
+select:disabled { color: var(--muted); background: #f3f2ee; }
+.nav-left { display: flex; gap: 8px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.hint.center { text-align: center; margin-top: -12px; margin-bottom: 24px; }
+@media (max-width: 520px) {
+  .nav-left { width: 100%; }
+  .nav-left .btn { flex: 1; }
+}

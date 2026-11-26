@@ -18,6 +18,15 @@
   <main class="wrap">
     <!-- 設定画面 -->
     <section id="setup" class="screen">
+      <div id="resume" class="card resume" hidden>
+        <p class="resume-title">前回の続き</p>
+        <p id="resume-info" class="resume-info"></p>
+        <div class="resume-actions">
+          <button type="button" id="resume-btn" class="btn primary">続きから再開</button>
+          <button type="button" id="resume-discard" class="link">破棄する</button>
+        </div>
+      </div>
+
       <div class="card exam">
         <p class="exam-title">期末試験</p>
         <p id="exam-date" class="exam-date"></p>
@@ -59,6 +68,12 @@
           <label><input type="radio" name="count" value="20"><span>20問</span></label>
           <label><input type="radio" name="count" value="0" checked><span>全部</span></label>
         </div>
+
+        <h2 class="mt">開始位置</h2>
+        <label class="select-wrap" for="start-from">
+          <select id="start-from"></select>
+        </label>
+        <p id="start-from-hint" class="hint">途中の問題から始められます（まとめプリントの順のとき）。</p>
       </div>
 
       <div class="start-bar">
@@ -74,6 +89,7 @@
         <ul>
           <li>問題はまとめプリントの項目（配列解析・立体構造・ゲノム・トランスクリプトーム・プロテオーム・メタボローム）に沿っています。まとめ外でも過去問に出た内容（PCR・E484Kなど）は最後にまとめました。</li>
           <li>「過去問」バッジはその内容が期末試験に出た年、「メモ」はまとめプリントや付箋の書き込みです。</li>
+          <li>途中でページを閉じても、設定画面の「続きから再開」で前回の問題から続けられます。「開始位置」で好きな問題から始めることもできます。</li>
           <li>最後に「あいまい」を付けた問題はこのブラウザに記録され、「あいまいな問題だけ」で解き直したり、一覧で読み直したりできます。あとで「答えれた」を付けると、あいまいのリストから外れます。</li>
         </ul>
         <button type="button" id="reset-history" class="link danger">記録をリセット</button>
@@ -94,9 +110,13 @@
         <div id="feedback" class="feedback" hidden></div>
       </article>
       <div class="nav">
-        <button type="button" id="quit" class="btn ghost">終了して結果を見る</button>
+        <div class="nav-left">
+          <button type="button" id="prev" class="btn ghost">前へ</button>
+          <button type="button" id="quit" class="btn ghost">中断して結果を見る</button>
+        </div>
         <button type="button" id="next" class="btn primary" hidden>次へ</button>
       </div>
+      <p class="hint center">途中でやめても、次に開いたときに「続きから再開」できます。</p>
     </section>
 
     <!-- 結果画面 -->
